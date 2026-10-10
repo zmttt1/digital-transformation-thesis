@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>基于年报文本挖掘的上市公司数字化转型测度及其绩效影响研究</title>
+<meta name="description" content="以2019—2023年沪深A股428家上市公司2140份年报为样本，通过“数据获取—文本预处理—测度构建—信效度检验—回归分析”五步流水线构建企业数字化转型指数（DTI），并检验其对企业绩效的影响。">
+<meta name="keywords" content="数字化转型,文本挖掘,测度构建,年报文本,信度检验,面板回归,Word2Vec">
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b1220'/><text x='50' y='68' font-size='46' text-anchor='middle' fill='%2338bdf8' font-family='sans-serif'>DTI</text></svg>">
+<style>
+:root{
+  --ink:#0b1220; --slate:#334155; --muted:#64748b; --line:#e2e8f0;
+  --accent:#0369a1; --accent2:#0891b2; --accent-soft:#e0f2fe; --warn:#b45309;
+  --bg:#f1f5f9; --card:#fff; --r:14px;
+  --shadow:0 1px 2px rgba(11,18,32,.04),0 8px 26px -14px rgba(11,18,32,.14);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Hiragino Sans GB",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--bg);color:var(--slate);line-height:1.78;font-size:15px;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto}
+
+/* ---------- nav ---------- */
+nav{position:sticky;top:0;z-index:30;background:rgba(11,18,32,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.08)}
+.nav-in{max-width:1080px;margin:0 auto;padding:0 18px;display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.nav-in::-webkit-scrollbar{display:none}
+.nav-in a{color:rgba(255,255,255,.66);text-decoration:none;font-size:13px;padding:11px 10px;white-space:nowrap;border-bottom:2px solid transparent}
+.nav-in a:hover{color:#fff}
+.nav-in a.on{color:#38bdf8;border-bottom-color:#38bdf8}
+
+/* ---------- hero ---------- */
+.hero{background:linear-gradient(140deg,#0b1220 0%,#0c2d47 55%,#0369a1 130%);color:#fff;padding:52px 44px 44px;position:relative;overflow:hidden}
+.hero::after{content:"";position:absolute;right:-60px;top:-90px;width:300px;height:300px;border-radius:50%;background:rgba(56,189,248,.10)}
+.hero *{position:relative;z-index:1}
+.eyebrow{font-size:12.5px;letter-spacing:2px;color:#7dd3fc;text-transform:uppercase;margin-bottom:12px}
+h1{font-size:29px;line-height:1.45;font-weight:600;letter-spacing:.5px}
+.subtitle{margin-top:10px;font-size:15px;color:rgba(255,255,255,.8)}
+.kw{margin-top:16px;display:flex;flex-wrap:wrap;gap:7px}
+.kw span{font-size:12.5px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.18);padding:3px 11px;border-radius:99px;color:rgba(255,255,255,.9)}
+.stats{margin-top:26px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:13px 15px}
+.stat b{display:block;font-size:23px;color:#7dd3fc;font-weight:600;line-height:1.3;font-variant-numeric:tabular-nums}
+.stat i{font-style:normal;font-size:12px;color:rgba(255,255,255,.62)}
+
+/* ---------- layout ---------- */
+main{background:var(--card);box-shadow:var(--shadow);border-radius:18px;margin:-18px auto 0;position:relative;z-index:5;padding:34px 44px 44px}
+section{margin-bottom:38px;scroll-margin-top:56px}
+h2{font-size:19px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:9px;padding-bottom:9px;border-bottom:2px solid var(--ink);margin-bottom:16px}
+h2 .en{font-size:11px;letter-spacing:1.5px;color:var(--muted);font-weight:500;margin-left:auto;text-transform:uppercase}
+h3{font-size:15.5px;font-weight:600;color:var(--ink);margin:20px 0 8px}
+p{margin-bottom:9px;text-align:justify}
+p:last-child{margin-bottom:0}
+b,strong{color:var(--ink);font-weight:600}
+
+.note{background:#fffbeb;border:1px solid #fde68a;border-left:3px solid var(--warn);border-radius:10px;padding:12px 15px;font-size:13.4px;color:#78350f;margin-bottom:16px}
+.note b{color:#78350f}
+
+/* abstract */
+.abs{background:#f8fafc;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:18px 20px;font-size:14.2px}
+.abs .lbl{font-size:12px;letter-spacing:2px;color:var(--accent);font-weight:600;margin-bottom:8px}
+
+/* pipeline */
+.pipe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:4px 0 14px}
+.step{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:14px 12px;text-align:center;position:relative}
+.step .n{width:26px;height:26px;border-radius:50%;background:var(--ink);color:#fff;font-size:12.5px;display:grid;place-items:center;margin:0 auto 8px}
+.step b{display:block;font-size:13.4px;color:var(--ink);margin-bottom:4px}
+.step span{font-size:11.8px;color:var(--muted);line-height:1.5;display:block}
+
+/* findings */
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:16px 17px;background:#fff;border-top:3px solid var(--accent)}
+.card .t{font-size:12px;letter-spacing:1px;color:var(--accent);font-weight:600;margin-bottom:7px;text-transform:uppercase}
+.card h4{font-size:14.6px;font-weight:600;color:var(--ink);margin-bottom:7px;line-height:1.5}
+.card p{font-size:13.2px;color:var(--muted);line-height:1.7}
+
+/* formula */
+.fml{background:#0b1220;color:#e2e8f0;border-radius:12px;padding:16px 20px;font-family:"Cambria Math",Georgia,serif;
+  font-size:15.5px;text-align:center;margin:12px 0;overflow-x:auto;letter-spacing:.5px}
+.fml .cmt{display:block;font-family:inherit;font-size:11.5px;color:#94a3b8;margin-top:8px;letter-spacing:0}
+.fml em{color:#7dd3fc;font-style:normal}
+
+/* tables */
+.tw{overflow-x:auto;margin:12px 0;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13.2px;min-width:520px;background:#fff}
+caption{caption-side:top;text-align:left;font-size:12.5px;color:var(--muted);padding:10px 14px 0}
+th,td{padding:9px 12px;border-bottom:1px solid #eef2f7;text-align:right;white-space:nowrap}
+th{background:#f8fafc;color:var(--ink);font-weight:600;font-size:12.6px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#f8fafc}
+td:first-child{background:#fff;font-weight:500;color:var(--ink)}
+tbody tr:hover td{background:#f8fbff}
+tbody tr:last-child td{border-bottom:none}
+td.pos{color:#b91c1c;font-weight:600}
+.star{color:#b91c1c;font-weight:600}
+tfoot td{background:#f8fafc;font-size:12.4px;color:var(--muted);text-align:left;white-space:normal;padding:10px 12px}
+
+/* bar viz */
+.bars{display:grid;gap:10px;margin:12px 0}
+.bar{display:grid;grid-template-columns:150px 1fr 92px;gap:12px;align-items:center;font-size:13px}
+.bar .lb{color:var(--ink);font-weight:500}
+.bar .track{height:22px;background:#eef2f7;border-radius:6px;overflow:hidden}
+.bar .fl{height:100%;border-radius:6px;background:linear-gradient(90deg,#0369a1,#38bdf8);width:0;transition:width 1s cubic-bezier(.22,1,.36,1)}
+.bar .vl{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);font-weight:600}
+.bar .fl.alt{background:linear-gradient(90deg,#64748b,#cbd5e1)}
+
+ul.dot{padding-left:0;list-style:none;margin:8px 0}
+ul.dot li{position:relative;padding-left:16px;margin-bottom:6px;font-size:13.8px}
+ul.dot li::before{content:"";position:absolute;left:0;top:.72em;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+ol.num{padding-left:20px;margin:8px 0}
+ol.num li{margin-bottom:6px;font-size:13.8px}
+
+/* references */
+.refs{list-style:none;counter-reset:r;padding:0;margin:0}
+.refs li{counter-increment:r;position:relative;padding-left:34px;margin-bottom:9px;font-size:13px;color:var(--slate);line-height:1.7}
+.refs li::before{content:"[" counter(r) "]";position:absolute;left:0;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+
+footer{text-align:center;padding:24px 18px 34px;font-size:12.6px;color:var(--muted)}
+footer b{color:var(--slate)}
+
+.actions{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:9px;z-index:40}
+.actions button{width:44px;height:44px;border:none;border-radius:50%;background:var(--ink);color:#fff;cursor:pointer;
+  box-shadow:0 8px 20px -6px rgba(11,18,32,.45);display:grid;place-items:center;transition:transform .18s,background .18s}
+.actions button:hover{transform:translateY(-2px);background:var(--accent)}
+.actions svg{width:18px;height:18px;fill:#fff}
+
+@media (max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .pipe{grid-template-columns:repeat(2,1fr)}
+  .cards{grid-template-columns:1fr}
+  .hero{padding:34px 20px}
+  main{padding:24px 20px 34px;border-radius:0}
+  h1{font-size:22px}
+  .bar{grid-template-columns:110px 1fr 72px;font-size:12.4px}
+}
+@media (max-width:520px){ .pipe{grid-template-columns:1fr} h1{font-size:19.5px} }
+
+@page{size:A4;margin:13mm}
+@media print{
+  body{background:#fff;font-size:10.4pt}
+  nav,.actions{display:none}
+  .hero{padding:16px 18px;background:#0b1220 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h1{font-size:17pt}
+  .stats{grid-template-columns:repeat(4,1fr);gap:6px}
+  .stat{padding:7px 9px}.stat b{font-size:14pt}
+  main{box-shadow:none;border-radius:0;padding:14px 0 0;margin:0;max-width:none}
+  section{margin-bottom:18px;break-inside:avoid}
+  h2{font-size:13pt;padding-bottom:5px}
+  .tw{border-radius:6px;break-inside:avoid}
+  table{min-width:0;font-size:8.6pt}
+  th,td{padding:5px 6px}
+  .fml{background:#f1f5f9 !important;color:#0b1220 !important;border:1px solid #cbd5e1;font-size:10pt}
+  .fml em{color:#0369a1}
+  .card,.step,.abs,.note{break-inside:avoid}
+  .card{border-top-width:2px}
+}
+</style>
+</head>
+<body>
+
+<nav><div class="nav-in">
+  <a href="#abs">摘要</a><a href="#gap">研究背景</a><a href="#pipe">研究流程</a><a href="#data">数据与方法</a>
+  <a href="#result">实证结果</a><a href="#hetero">稳健性与异质性</a><a href="#concl">结论与展望</a><a href="#refs">参考文献</a>
+</div></nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Text Mining · Digital Transformation · Firm Performance</div>
+    <h1>基于年报文本挖掘的上市公司数字化转型测度<br>及其对企业绩效的影响研究</h1>
+    <div class="subtitle">——来自沪深A股上市公司的经验证据</div>
+    <div class="kw">
+      <span>数字化转型</span><span>文本挖掘</span><span>测度构建</span><span>年报文本</span><span>信度检验</span><span>面板回归</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>428</b><i>样本上市公司</i></div>
+      <div class="stat"><b>2140</b><i>企业—年度观测值</i></div>
+      <div class="stat"><b>2019–2023</b><i>样本区间</i></div>
+      <div class="stat"><b>0.87</b><i>Cronbach's α 信度</i></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="note">
+    <b>数据说明</b>：本文为大数据专业课程「预演毕业论文」，文中企业—年度面板数据为依据公开文献统计特征构造的<b>演示数据</b>，用于完整展示分析流程；方法与流程本身完整、可复现。在实际毕业论文中，全部结果应由流水线脚本对真实数据运行生成。
+  </div>
+
+  <!-- 摘要 -->
+  <section id="abs">
+    <h2>摘要<span class="en">Abstract</span></h2>
+    <div class="abs">
+      <div class="lbl">摘　要</div>
+      <p>在数字经济上升为国家战略的背景下，数字化转型已成为企业培育竞争优势的关键路径，但如何对企业数字化转型程度进行可量化、可检验的测度，仍是实证研究亟待解决的基础性问题。本文以测度构建为核心方法议题，基于 2019—2023 年沪深A股 428 家上市公司的年报文本，按照「数据获取—文本预处理—测度构建—信效度检验—回归分析」五步流水线，构建企业数字化转型指数（DTI）：首先爬取巨潮资讯网披露的 2140 份年度报告，经清洗、去停用词与分词后，采用「种子词典 + Word2Vec 相似词扩充」策略构建数字化转型词典；随后以数字化关键词词频占年报总词频的比值构建测度，并运用 Cronbach's α 系数、分半信度与收敛效度检验评估测度质量；最后将其作为核心解释变量纳入面板回归模型，考察数字化转型对企业绩效（ROA）的影响。</p>
+      <p><b>研究发现：</b>（1）DTI 均值为 1.87%，且呈逐年上升趋势，测度具有良好的内部一致性信度（α=0.87）与收敛效度；（2）数字化转型程度每提高 1 个标准差，企业总资产收益率平均提升约 0.21 个百分点，该效应在控制企业规模、杠杆率、股权集中度等变量后依然稳健；（3）异质性分析表明，数字化转型的绩效提升效应在国有企业和高技术行业中更为显著。研究结论为「文本测度—信效度检验—经济后果检验」的规范化研究范式提供了示范，也为企业数字化战略决策提供了经验依据。</p>
+      <p style="margin-top:10px"><b>关键词：</b>数字化转型；文本挖掘；测度构建；年报文本；信度检验；面板回归</p>
+    </div>
+  </section>
+
+  <!-- 研究背景 -->
+  <section id="gap">
+    <h2>研究背景与研究 Gap<span class="en">Motivation &amp; Gaps</span></h2>
+    <p>以大数据、人工智能、云计算为代表的数字技术加速向实体经济渗透，「十四五」规划明确提出「加快数字化发展、建设数字中国」。然而与实践中火热的转型浪潮相比，学术研究面临一个更为基础的方法论难题：数字化转型是一个<b>抽象、多维、动态的构念（construct）</b>，研究者很难像观察企业规模、杠杆率那样，直接从财务报表中获得其量化指标。</p>
+    <p>主流思路之一是利用年报文本统计数字化词汇的频率构造指数，数据成本低、覆盖面广、可回溯。但大量研究在应用该测度时往往直接套用既有词典，<b>省略了对测度本身信度与效度的系统检验</b>，导致口径差异大、可比性弱，甚至出现同一数据来源下方向相反的结果。</p>
+    <h3>本文识别的两处研究空白</h3>
+    <ul class="dot">
+      <li><b>Gap 一 · 测度构建过程不透明、检验不规范</b>：多数研究仅报告最终指数，未披露词典构建细节与文本处理参数，且普遍缺乏 Cronbach's α、分半信度、收敛效度等统计学检验，可复现性差。</li>
+      <li><b>Gap 二 · 样本时效滞后</b>：现有主流文献样本期多止于 2020 年以前，难以刻画其后数字经济加速发展阶段的转型态势。</li>
+    </ul>
+    <h3>边际贡献</h3>
+    <p>以规范化、可复现的五步流水线完整构建数字化转型测度并报告全套信效度证据，同时将样本更新至 2023 年，在<b>方法示范</b>与<b>经验证据</b>两个方向上填补空白。这套流程对其他基于文本的构念测度（企业 ESG 表现、管理层语调、创新文化等）同样具有迁移价值。</p>
+  </section>
+
+  <!-- 五步流水线 -->
+  <section id="pipe">
+    <h2>研究设计与五步流水线<span class="en">Research Pipeline</span></h2>
+    <p>每一环节的输出均为下一环节的输入：原始年报文本经预处理形成企业—年度语料库；语料库经词典匹配与词频统计形成测度；测度经信效度检验确认质量合格后，方可作为核心变量进入回归模型。这一设计保证了<b>「测度先验证、后使用」</b>，避免未经检验的指标直接进入因果推断环节。</p>
+    <div class="pipe">
+      <div class="step"><div class="n">1</div><b>数据获取</b><span>巨潮资讯网爬取<br>2140 份年报 PDF</span></div>
+      <div class="step"><div class="n">2</div><b>文本预处理</b><span>清洗 / 分词<br>去停用词</span></div>
+      <div class="step"><div class="n">3</div><b>测度构建</b><span>种子词典<br>+ Word2Vec 扩充</span></div>
+      <div class="step"><div class="n">4</div><b>信效度检验</b><span>内部一致性 / 分半<br>收敛效度</span></div>
+      <div class="step"><div class="n">5</div><b>回归分析</b><span>双向固定效应<br>面板回归</span></div>
+    </div>
+
+    <h3>1. 数据来源与样本筛选</h3>
+    <p>年报文本来自巨潮资讯网（cninfo.com.cn）公开披露的年度报告全文，用 Python 的 <code>requests</code> 与 <code>BeautifulSoup</code> 编写爬虫获取 PDF，经 <code>pdfplumber</code> 解析为纯文本；财务与公司特征数据来自国泰安 CSMAR 数据库。筛选规则：</p>
+    <ul class="dot">
+      <li>选取 2019—2023 年沪深 A 股上市公司；剔除金融保险类；剔除 ST、*ST 及退市公司；</li>
+      <li>剔除年报文本缺失、财务数据严重缺失的观测；</li>
+      <li>对连续变量在 1% 和 99% 分位进行缩尾（Winsorize）处理。</li>
+    </ul>
+    <p>最终形成 <b>428 家公司 × 5 个年度 = 2140 个企业—年度观测值</b>的非平衡面板。技术栈：Python 3.11、jieba 0.42、gensim 4.3、pandas 2.1、statsmodels 0.14。</p>
+
+    <h3>2. 文本预处理四步</h3>
+    <ol class="num">
+      <li><b>文档解析与定位</b>：以 MD&amp;A（管理层讨论与分析）作为主要分析文本，同时保留「经营情况讨论与分析」「未来发展展望」等章节。</li>
+      <li><b>清洗</b>：正则去除 HTML 残留标签、页眉页脚、目录、表格线与无关数字串，统一全角半角、繁转简。</li>
+      <li><b>分词</b>：jieba 加载自定义数字化词典，保证「数字孪生」「边缘计算」等专业术语不被切碎。</li>
+      <li><b>去停用词</b>：在哈工大停用词表基础上补充「公司、报告期、同比」等年报高频无区分词，形成含 <b>1423 个词</b>的停用词表。</li>
+    </ol>
+    <p>预处理后，单个年报平均有效词数为 <b>8632 词</b>。</p>
+
+    <h3>3. 测度构建：种子词典 + Word2Vec 扩充</h3>
+    <ul class="dot">
+      <li><b>种子词典</b>：以吴非等（2021）五维框架为基础，从人工智能、大数据、云计算、区块链、数字技术应用五个维度人工整理 <b>127 个种子词</b>。</li>
+      <li><b>相似词扩充</b>：训练 Word2Vec（Skip-gram，向量维度 100，窗口 5，最小词频 5），对每个种子词取余弦相似度最高的候选词，由两名编码者独立判断是否属于数字化语义范畴，保留一致性判断通过者，最终扩充至 <b>215 个词</b>，新增如「算力、数智化、中台、低代码、RPA、数字孪生」等。</li>
+      <li><b>流程优势</b>：「人工种子 + 机器扩充 + 人工确认」的半自动化流程，兼顾词典覆盖度与构念效度，降低人工主观性。</li>
+    </ul>
+    <div class="fml">
+      DTI<sub>it</sub> = ( Σ<sub>k</sub> Count<sub>k</sub>(it) / TotalWords<sub>it</sub> ) × 100
+      <span class="cmt">式（2-1）　其中 <em>Count<sub>k</sub>(it)</em> 为企业 i 在年度 t 年报中词典词 w<sub>k</sub> 的频次，分母取 <em>MD&amp;A 总词数</em>以避免「长年报稀释效应」</span>
+    </div>
+    <p>采用<strong>相对词频占比</strong>以消除年报篇幅差异的影响；后文以全文总词数为分母重新计算 DTI 作稳健性检验。</p>
+  </section>
+
+  <!-- 数据与方法 -->
+  <section id="data">
+    <h2>变量定义与模型设定<span class="en">Variables &amp; Model</span></h2>
+    <div class="tw">
+      <table>
+        <caption>表 1　变量定义与测度方式</caption>
+        <thead><tr><th>变量类型</th><th>变量名称</th><th>符号</th><th>定义与测度方式</th></tr></thead>
+        <tbody>
+          <tr><td>被解释变量</td><td>企业绩效</td><td>ROA</td><td>总资产收益率 = 净利润 / 平均总资产 × 100%</td></tr>
+          <tr><td>核心解释变量</td><td>数字化转型指数</td><td>DTI</td><td>数字化词典词频合计 / MD&amp;A 总词数 × 100</td></tr>
+          <tr><td>控制变量</td><td>企业规模</td><td>Size</td><td>年末总资产的自然对数</td></tr>
+          <tr><td>控制变量</td><td>资产负债率</td><td>Lev</td><td>年末总负债 / 年末总资产</td></tr>
+          <tr><td>控制变量</td><td>企业成长性</td><td>Growth</td><td>营业收入同比增长率</td></tr>
+          <tr><td>控制变量</td><td>股权集中度</td><td>Top1</td><td>第一大股东持股比例</td></tr>
+          <tr><td>控制变量</td><td>两职合一</td><td>Dual</td><td>董事长兼任总经理取 1，否则取 0</td></tr>
+          <tr><td>控制变量</td><td>上市年限</td><td>Age</td><td>观测年度减去上市年度</td></tr>
+          <tr><td>控制变量</td><td>产权性质</td><td>SOE</td><td>国有企业取 1，否则取 0</td></tr>
+          <tr><td>固定效应</td><td>年度 / 行业</td><td>Year/Ind</td><td>控制年度与行业固定效应</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="fml">
+      ROA<sub>it</sub> = α + β · DTI<sub>it</sub> + γ · Controls<sub>it</sub> + μ<sub>i</sub> + λ<sub>t</sub> + ε<sub>it</sub>
+      <span class="cmt">式（2-2）　<em>μ<sub>i</sub></em> 为个体固定效应，<em>λ<sub>t</sub></em> 为年度固定效应；所有回归采用公司层面聚类稳健标准误；预期 β 显著为正</span>
+    </div>
+    <p>异质性检验通过在模型中加入 DTI 与产权性质（SOE）、行业技术属性（HT）的交乘项实现。</p>
+  </section>
+
+  <!-- 实证结果 -->
+  <section id="result">
+    <h2>实证分析结果<span class="en">Empirical Results</span></h2>
+
+    <h3>（一）描述性统计</h3>
+    <div class="tw">
+      <table>
+        <caption>表 2　主要变量描述性统计</caption>
+        <thead><tr><th>变量</th><th>均值</th><th>标准差</th><th>最小值</th><th>中位数</th><th>最大值</th></tr></thead>
+        <tbody>
+          <tr><td>ROA（%）</td><td>4.31</td><td>4.02</td><td>-18.27</td><td>4.02</td><td>21.85</td></tr>
+          <tr><td>DTI（%）</td><td>1.87</td><td>1.62</td><td>0.00</td><td>1.42</td><td>9.34</td></tr>
+          <tr><td>Size</td><td>22.41</td><td>1.28</td><td>19.73</td><td>22.26</td><td>26.14</td></tr>
+          <tr><td>Lev（%）</td><td>42.37</td><td>18.95</td><td>5.62</td><td>41.26</td><td>89.41</td></tr>
+          <tr><td>Growth（%）</td><td>12.54</td><td>28.31</td><td>-51.36</td><td>9.21</td><td>186.42</td></tr>
+          <tr><td>Top1（%）</td><td>33.16</td><td>14.02</td><td>8.75</td><td>31.24</td><td>73.86</td></tr>
+          <tr><td>Age（年）</td><td>15.83</td><td>5.21</td><td>3.00</td><td>16.00</td><td>32.00</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="6">DTI 中位数（1.42%）低于均值（1.87%），呈右偏分布，即少数企业数字化转型程度显著领先。</td></tr></tfoot>
+      </table>
+    </div>
+    <div class="bars">
+      <div class="bar"><span class="lb">DTI 均值（2019）</span><span class="track"><span class="fl alt" data-w="12.96"></span></span><span class="vl">1.21%</span></div>
+      <div class="bar"><span class="lb">DTI 均值（2023）</span><span class="track"><span class="fl" data-w="27.62"></span></span><span class="vl">2.58%</span></div>
+    </div>
+    <p style="font-size:12.6px;color:var(--muted);margin-top:-6px">条形长度为各年份 DTI 均值相对样本最大值（9.34%）的比例。</p>
+    <p style="font-size:13px;color:var(--muted)">分年度看，DTI 均值从 2019 年的 1.21% 上升至 2023 年的 2.58%，年均复合增长率约 <b>20.8%</b>；2020—2021 年增速最快，与疫情催化线上化经营及「十四五」规划发布的时间节点吻合。</p>
+
+    <h3>（二）信度检验与效度检验</h3>
+    <div class="tw">
+      <table>
+        <caption>表 3　DTI 测度质量检验结果汇总</caption>
+        <thead><tr><th>检验类型</th><th>指标</th><th>数值</th><th>判定标准</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td>内部一致性信度</td><td>Cronbach's α</td><td>0.87</td><td>≥ 0.8 为优良</td><td>通过</td></tr>
+          <tr><td>分半信度</td><td>Spearman-Brown 系数</td><td>0.83</td><td>≥ 0.7 为可接受</td><td>通过</td></tr>
+          <tr><td>收敛效度</td><td>与数字化无形资产占比相关系数</td><td>0.46</td><td>显著正相关</td><td>通过</td></tr>
+          <tr><td>收敛效度</td><td>与 IT 人员占比相关系数</td><td>0.39</td><td>显著正相关</td><td>通过</td></tr>
+          <tr><td>维度结构</td><td>维度间相关系数区间</td><td>0.31–0.58</td><td>&lt; 0.7 避免重合</td><td>通过</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="5">剔除任一维度后 α 系数区间为 0.84—0.86，无明显跃升，说明五个维度不存在冗余题项；相邻年度重测稳定性标准差为 0.24%。</td></tr></tfoot>
+      </table>
+    </div>
+
+    <h3>（三）相关性分析</h3>
+    <p>DTI 与 ROA 的 Pearson 相关系数为 <b>0.23（p&lt;0.01）</b>，初步支持正相关关系；控制变量间相关系数绝对值最大为 0.41（Size 与 Lev），低于 0.5 的共线性警戒线。方差膨胀因子（VIF）最大值为 <b>2.13</b>，均值 1.36，远小于 10，模型不存在严重多重共线性。</p>
+
+    <h3>（四）基准回归分析</h3>
+    <div class="tw">
+      <table>
+        <caption>表 4　数字化转型对企业绩效影响的面板回归结果（被解释变量：ROA）</caption>
+        <thead><tr><th>变量</th><th>（1）混合 OLS</th><th>（2）加入控制变量</th><th>（3）双向固定效应</th></tr></thead>
+        <tbody>
+          <tr><td>DTI</td><td class="pos">0.281<span class="star">***</span> (6.42)</td><td class="pos">0.246<span class="star">***</span> (5.87)</td><td class="pos">0.132<span class="star">***</span> (3.15)</td></tr>
+          <tr><td>Size</td><td>—</td><td>-0.521<span class="star">***</span> (-4.03)</td><td>-0.687<span class="star">***</span> (-3.56)</td></tr>
+          <tr><td>Lev</td><td>—</td><td>-0.038<span class="star">***</span> (-7.12)</td><td>-0.029<span class="star">***</span> (-4.87)</td></tr>
+          <tr><td>Growth</td><td>—</td><td class="pos">0.021<span class="star">***</span> (5.34)</td><td class="pos">0.018<span class="star">***</span> (4.62)</td></tr>
+          <tr><td>Top1</td><td>—</td><td>0.014<span class="star">**</span> (2.21)</td><td>0.011<span class="star">*</span> (1.88)</td></tr>
+          <tr><td>Dual</td><td>—</td><td>0.187<span class="star">**</span> (2.04)</td><td>0.121 (1.32)</td></tr>
+          <tr><td>Age</td><td>—</td><td>-0.062<span class="star">**</span> (-2.35)</td><td>-0.089<span class="star">**</span> (-2.17)</td></tr>
+          <tr><td>常数项</td><td>3.852<span class="star">***</span> (9.11)</td><td>12.463<span class="star">***</span> (4.28)</td><td>15.924<span class="star">***</span> (3.71)</td></tr>
+          <tr><td>个体固定效应</td><td>否</td><td>否</td><td>是</td></tr>
+          <tr><td>年度固定效应</td><td>否</td><td>否</td><td>是</td></tr>
+          <tr><td>聚类稳健标准误</td><td>否</td><td>是</td><td>是</td></tr>
+          <tr><td>N</td><td>2140</td><td>2140</td><td>2140</td></tr>
+          <tr><td>调整 R²</td><td>0.052</td><td>0.183</td><td>0.612</td></tr>
+        </tbody>
+        <tfoot><tr><td colspan="4">注：括号内为 t 值；*、**、*** 分别表示在 10%、5%、1% 水平显著。列（3）经济含义：DTI 每提高 1 个标准差（1.62%），ROA 平均提升约 0.21 个百分点，相对 ROA 均值 4.31% 提升约 5.0%。</td></tr></tfoot>
+      </table>
+    </div>
+    <p><b>系数衰减的解释</b>：从不控制固定效应的 0.281 降至双向固定效应下的 0.132，符合预期——混合 OLS 的正相关部分来自「数字化程度高的企业本身盈利能力就强」的组间差异；固定效应吸收企业层面稳定特征后，识别出的才是企业自身转型程度变动的影响，估计更干净。</p>
+  </section>
+
+  <!-- 稳健性与异质性 -->
+  <section id="hetero">
+    <h2>稳健性检验与异质性分析<span class="en">Robustness &amp; Heterogeneity</span></h2>
+    <h3>稳健性检验</h3>
+    <ul class="dot">
+      <li><b>替换测度口径</b>：以年报全文总词数替换 MD&amp;A 词数作分母，DTI 系数为 0.118（t=2.86，p&lt;0.01）；改用「词频加 1 取自然对数」口径，系数仍显著为正。</li>
+      <li><b>替换被解释变量</b>：以 ROE 替换 ROA，DTI 系数为 0.201（t=2.93，p&lt;0.01），结论保持稳健。</li>
+      <li><b>滞后一期处理</b>：缓解反向因果干扰，DTI 系数为 0.104（t=2.41，p&lt;0.05），正向效应依然存在。</li>
+    </ul>
+    <h3>异质性分析</h3>
+    <div class="bars">
+      <div class="bar"><span class="lb">国有企业</span><span class="track"><span class="fl" data-w="100"></span></span><span class="vl">0.158***</span></div>
+      <div class="bar"><span class="lb">非国有企业</span><span class="track"><span class="fl alt" data-w="61.4"></span></span><span class="vl">0.097*</span></div>
+      <div class="bar"><span class="lb">高技术行业</span><span class="track"><span class="fl" data-w="100"></span></span><span class="vl">0.171***</span></div>
+      <div class="bar"><span class="lb">非高技术行业</span><span class="track"><span class="fl alt" data-w="52.0"></span></span><span class="vl">0.089*</span></div>
+    </div>
+    <p>国有企业融资约束较低、能够支撑数字化转型的长周期投入；高技术行业数字技术与业务耦合度更高，转型红利更易兑现。两者共同支持<b>「资源禀赋与技术互补性」</b>的解释。</p>
+    <h3>方法论启示</h3>
+    <p>若跳过信效度检验直接进入回归，DTI 的测量误差会稀释估计系数并低估标准误，得到看似显著实则脆弱的结论。五步流水线中「信效度检验」独立成步，正是为了避免此类问题。</p>
+  </section>
+
+  <!-- 结论 -->
+  <section id="concl">
+    <h2>结论、局限与展望<span class="en">Conclusions</span></h2>
+    <div class="cards">
+      <div class="card">
+        <div class="t">Finding 01</div>
+        <h4>文本词频型测度可信、可检验、可复现</h4>
+        <p>基于「种子词典 + Word2Vec 扩充」的 215 词词典能稳定刻画年报中的数字化转型叙事，DTI 通过内部一致性信度（α=0.87）、分半信度（0.83）与收敛效度检验。</p>
+      </div>
+      <div class="card">
+        <div class="t">Finding 02</div>
+        <h4>数字化转型显著且稳健地提升企业绩效</h4>
+        <p>DTI 每提高 1 个标准差，ROA 平均提升约 0.21 个百分点；结论在替换测度口径、替换绩效指标与滞后处理下均保持稳健。</p>
+      </div>
+      <div class="card">
+        <div class="t">Finding 03</div>
+        <h4>转型红利存在产权与行业异质性</h4>
+        <p>国有企业（0.158）强于非国有企业（0.097），高技术行业（0.171）强于非高技术行业（0.089），转型效果的兑现依赖资源禀赋与技术吸收能力。</p>
+      </div>
+    </div>
+    <h3>研究局限</h3>
+    <ul class="dot">
+      <li>词频占比法本质上捕捉的是企业对数字化的「叙事强度」，可能与实际投入存在偏差，需多源验证（招聘文本、专利文本、财务投入数据）进一步校准。</li>
+      <li>本文样本为演示数据，具体数值结论有待在真实数据上复现确认。</li>
+      <li>回归设计主要依赖固定效应与滞后处理缓解内生性，尚不能完全排除遗漏变量与反向因果，因果识别强度有限。</li>
+    </ul>
+    <h3>未来展望</h3>
+    <ol class="num">
+      <li>引入 BERT 等预训练语言模型进行<b>语义级测度</b>，识别数字化表述的语调与深度，超越简单词频。</li>
+      <li>结合企业招聘数据、专利文本构建<b>多源融合测度</b>，提升构念效度。</li>
+      <li>利用数字化转型相关政策（如「上云用数赋智」行动）构造准自然实验，运用<b>双重差分</b>强化因果识别，打开「转型—绩效」机制黑箱。</li>
+    </ol>
+  </section>
+
+  <!-- 参考文献 -->
+  <section id="refs">
+    <h2>参考文献<span class="en">References</span></h2>
+    <ol class="refs">
+      <li>Vial G. Understanding digital transformation: A review and a research agenda[J]. <i>The Journal of Strategic Information Systems</i>, 2019, 28(2): 118-144.</li>
+      <li>Brynjolfsson E, Li D, Raymond L. Generative AI at work[R]. NBER Working Paper No. 31161, 2023.</li>
+      <li>吴非, 胡慧芷, 林慧妍, 等. 企业数字化转型与资本市场表现——来自股票流动性的经验证据[J]. <i>管理世界</i>, 2021, 37(7): 130-144.</li>
+      <li>戚聿东, 肖旭. 数字经济时代的企业管理变革[J]. <i>管理世界</i>, 2020, 36(6): 135-152.</li>
+      <li>袁淳, 肖土盛, 耿春晓, 等. 数字化转型与企业分工：专业化还是纵向一体化[J]. <i>中国工业经济</i>, 2021(9): 137-155.</li>
+      <li>赵宸宇, 王文春, 李雪松. 数字化转型如何影响企业全要素生产率[J]. <i>财贸经济</i>, 2021, 42(7): 114-129.</li>
+      <li>Hassani H, Huang X, Silva E S. Digitalisation and big data mining in banking[J]. <i>Big Data Mining and Analytics</i>, 2020, 3(3): 259-270.</li>
+      <li>温忠麟. 教育与心理统计中的信度与效度检验[M]. 北京: 北京师范大学出版社, 2016.</li>
+      <li>陈国青, 曾大军, 卫强, 等. 大数据环境下的商务管理研究范式[J]. <i>管理科学学报</i>, 2018, 21(7): 1-10.</li>
+    </ol>
+  </section>
+</main>
+
+<footer>本文为大数据专业课程预演毕业论文 · 研究流程与结构设计完整可复现 · <b>GitHub Pages 静态展示</b></footer>
+
+<div class="actions">
+  <button onclick="window.print()" title="打印 / 导出 PDF" aria-label="打印或导出PDF">
+    <svg viewBox="0 0 24 24"><path d="M18 3H6v4h12zM7 9a3 3 0 00-3 3v5h3v4h10v-4h3v-5a3 3 0 00-3-3zm5 11H8v-5h4z"/></svg>
+  </button>
+  <button onclick="window.scrollTo({top:0,behavior:'smooth'})" title="回到顶部" aria-label="回到顶部">
+    <svg viewBox="0 0 24 24"><path d="M12 4l8 8h-5v8h-6v-8H4z"/></svg>
+  </button>
+</div>
+
+<script>
+(function(){
+  // 数据条动画
+  function fill(){ document.querySelectorAll('.fl').forEach(function(e){ e.style.width=e.dataset.w+'%'; }); }
+  if('IntersectionObserver' in window){
+    var io=new IntersectionObserver(function(en){en.forEach(function(e){ if(e.isIntersecting){document.querySelectorAll('.fl').forEach(function(x){x.style.width=x.dataset.w+'%';}); io.disconnect();}});},{threshold:.2});
+    document.querySelectorAll('.track').forEach(function(t){io.observe(t);});
+  } else fill();
+  window.addEventListener('beforeprint',fill);
+
+  // 导航高亮
+  var secs=[].slice.call(document.querySelectorAll('section[id]'));
+  var links={};
+  document.querySelectorAll('.nav-in a').forEach(function(a){links[a.getAttribute('href').slice(1)]=a;});
+  function spy(){
+    var y=window.scrollY+140,cur=secs[0]&&secs[0].id;
+    secs.forEach(function(s){ if(s.offsetTop<=y) cur=s.id; });
+    for(var k in links) links[k].classList.toggle('on',k===cur);
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+})();
+</script>
+</body>
+</html>
